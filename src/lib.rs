@@ -1,3 +1,6 @@
+//! A mergeable priority heap
+
+/// Parameterizes the SkewHeap. Items stored in the heap are prioritized in ascending order.
 pub trait Item: PartialOrd + Clone {}
 impl<T: PartialOrd + Clone> Item for T {}
 
@@ -29,12 +32,15 @@ impl<'a, T: Item> Node<'a, T> {
 }
 
 
+/// A skew heap is an unbounded priority (min) heap. It is paramaterized by the type of item to be
+/// stored in it. Items must implement PartialOrd and Clone.
 pub struct SkewHeap<'a, T: Item> {
     size: u64,
     root: Tree<'a, T>,
 }
 
 impl<'a, T: Item> SkewHeap<'a, T> {
+    /// Returns a new SkewHeap
     pub fn new() -> SkewHeap<'a, T> {
         SkewHeap{
             size: 0,
@@ -42,14 +48,17 @@ impl<'a, T: Item> SkewHeap<'a, T> {
         }
     }
 
+    /// Returns the number of items in the SkewHeap
     pub fn size(&self) -> u64 {
         return self.size
     }
 
+    /// Returns true if there are no items currently in the SkewHeap
     pub fn is_empty(&self) -> bool {
         return self.size == 0
     }
 
+    /// Inserts an item into the heap and returns the new size
     pub fn put(&mut self, item: &'a T) -> u64 {
         self.root = match &self.root {
             Some(r) => Node::merge(&Some(r.clone()), &Node::new(item, None, None)),
@@ -61,6 +70,7 @@ impl<'a, T: Item> SkewHeap<'a, T> {
         return self.size
     }
 
+    /// Removes and retrieves the top item from the heap
     pub fn take(&mut self) -> Option<&'a T> {
         return match &self.root {
             None    => None,
@@ -73,6 +83,7 @@ impl<'a, T: Item> SkewHeap<'a, T> {
         }
     }
 
+    /// Retrieves the top item from the heap without removing it
     pub fn peek(&self) -> Option<&'a T> {
         return match &self.root {
             None    => None,
