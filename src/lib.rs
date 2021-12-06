@@ -5,6 +5,30 @@ impl<T: PartialOrd + Clone> Item for T {}
 type Tree<'a, T> = Option<Box<Node<'a, T>>>;
 
 
+#[derive(Clone)]
+struct Node<'a, T: 'a> {
+    item:  &'a T,
+    left:  Tree<'a, T>,
+    right: Tree<'a, T>,
+}
+
+impl<'a, T: Item> Node<'a, T> {
+    fn new(item: &'a T, left: Tree<'a, T>, right: Tree<'a, T>) -> Tree<'a, T> {
+        Some(Box::new(Node{ item, left, right }))
+    }
+
+    fn merge<'b>(a: &'b Tree<'a, T>, b: &'b Tree<'a, T>) -> Tree<'a, T> {
+        match (a, b) {
+            (None,    None)                       => None,
+            (Some(a), None)                       => Some(a.clone()),
+            (None,    Some(b))                    => Some(b.clone()),
+            (Some(a), Some(b)) if a.item > b.item => Node::merge(&Some(b.clone()), &Some(a.clone())),
+            (Some(a), Some(b))                    => Node::new(a.item, Node::merge(&a.right, &Some(b.clone())), a.left.clone()),
+        }
+    }
+}
+
+
 pub struct SkewHeap<'a, T: Item> {
     size: u64,
     root: Tree<'a, T>,
@@ -16,6 +40,10 @@ impl<'a, T: Item> SkewHeap<'a, T> {
             size: 0,
             root: None,
         }
+    }
+
+    pub fn size(&self) -> u64 {
+        return self.size
     }
 
     pub fn is_empty(&self) -> bool {
@@ -54,29 +82,6 @@ impl<'a, T: Item> SkewHeap<'a, T> {
 }
 
 
-#[derive(Clone)]
-struct Node<'a, T: 'a> {
-    item:  &'a T,
-    left:  Tree<'a, T>,
-    right: Tree<'a, T>,
-}
-
-impl<'a, T: Item> Node<'a, T> {
-    fn new(item: &'a T, left: Tree<'a, T>, right: Tree<'a, T>) -> Tree<'a, T> {
-        Some(Box::new(Node{ item, left, right }))
-    }
-
-    fn merge<'b>(a: &'b Tree<'a, T>, b: &'b Tree<'a, T>) -> Tree<'a, T> {
-        match (a, b) {
-            (None,    None)                       => None,
-            (Some(a), None)                       => Some(a.clone()),
-            (None,    Some(b))                    => Some(b.clone()),
-            (Some(a), Some(b)) if a.item > b.item => Node::merge(&Some(b.clone()), &Some(a.clone())),
-            (Some(a), Some(b))                    => Node::new(a.item, Node::merge(&a.right, &Some(b.clone())), a.left.clone()),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::SkewHeap;
@@ -97,22 +102,22 @@ mod tests {
         skew.put(&15);
         assert_eq!(skew.peak(), Some(&3));
 
-        assert_eq!(skew.size, 3);
+        assert_eq!(skew.size(), 3);
         assert!(!skew.is_empty());
 
         assert_eq!(skew.peak(), Some(&3));
         assert_eq!(skew.get(), Some(&3));
-        assert_eq!(skew.size, 2);
+        assert_eq!(skew.size(), 2);
         assert!(!skew.is_empty());
 
         assert_eq!(skew.peak(), Some(&10));
         assert_eq!(skew.get(), Some(&10));
-        assert_eq!(skew.size, 1);
+        assert_eq!(skew.size(), 1);
         assert!(!skew.is_empty());
 
         assert_eq!(skew.peak(), Some(&15));
         assert_eq!(skew.get(), Some(&15));
-        assert_eq!(skew.size, 0);
+        assert_eq!(skew.size(), 0);
         assert!(skew.is_empty());
     }
 }
