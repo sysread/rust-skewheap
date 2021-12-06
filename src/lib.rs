@@ -14,7 +14,7 @@ impl<'a, T: Item> SkewHeap<'a, T> {
     pub fn new() -> SkewHeap<'a, T> {
         SkewHeap{
             size: 0,
-            root:  None,
+            root: None,
         }
     }
 
@@ -63,7 +63,7 @@ struct Node<'a, T: 'a> {
 
 impl<'a, T: Item> Node<'a, T> {
     fn new(item: &'a T, left: Tree<'a, T>, right: Tree<'a, T>) -> Tree<'a, T> {
-        Some(Box::new(Node{ item: item, left: left, right: right }))
+        Some(Box::new(Node{ item, left, right }))
     }
 
     fn merge<'b>(a: &'b Tree<'a, T>, b: &'b Tree<'a, T>) -> Tree<'a, T> {
@@ -72,7 +72,7 @@ impl<'a, T: Item> Node<'a, T> {
             (Some(a), None)                       => Some(a.clone()),
             (None,    Some(b))                    => Some(b.clone()),
             (Some(a), Some(b)) if a.item > b.item => Node::merge(&Some(b.clone()), &Some(a.clone())),
-            (Some(a), Some(b))                    => Node::new(a.item, Node::merge(&a.right, &Some(b.clone())).clone(), a.left.clone()),
+            (Some(a), Some(b))                    => Node::new(a.item, Node::merge(&a.right, &Some(b.clone())), a.left.clone()),
         }
     }
 }
