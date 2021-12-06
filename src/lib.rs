@@ -1,10 +1,17 @@
-pub struct SkewHeap {
+pub trait Item: PartialOrd + Copy {}
+impl<T: PartialOrd + Copy> Item for T {}
+
+
+type Tree<T> = Option<Box<Node<T>>>;
+
+
+pub struct SkewHeap<T: Item> {
     size: u64,
-    root:  Tree,
+    root: Tree<T>,
 }
 
-impl SkewHeap {
-    pub fn new() -> SkewHeap {
+impl<T: Item> SkewHeap<T> {
+    pub fn new() -> SkewHeap<T> {
         SkewHeap{
             size: 0,
             root:  None,
@@ -15,7 +22,7 @@ impl SkewHeap {
         return self.size == 0
     }
 
-    pub fn put(&mut self, item: Item) -> u64 {
+    pub fn put(&mut self, item: T) -> u64 {
         self.root = match &self.root {
             Some(r) => Node::merge(&Some(r.clone()), &Node::new(item, None, None)),
             None    => Node::new(item, None, None)
@@ -26,7 +33,7 @@ impl SkewHeap {
         return self.size
     }
 
-    pub fn get(&mut self) -> Option<Item> {
+    pub fn get(&mut self) -> Option<T> {
         return match &self.root {
             None    => None,
             Some(r) => {
@@ -38,7 +45,7 @@ impl SkewHeap {
         }
     }
 
-    pub fn peak(&self) -> Option<Item> {
+    pub fn peak(&self) -> Option<T> {
         return match &self.root {
             None    => None,
             Some(r) => Some(r.item),
@@ -46,23 +53,21 @@ impl SkewHeap {
     }
 }
 
-type Item = i64;
-type Tree = Option<Box<Node>>;
 
 #[derive(Clone)]
-struct Node {
-    item:  Item,
-    left:  Tree,
-    right: Tree,
+struct Node<T> {
+    item:  T,
+    left:  Tree<T>,
+    right: Tree<T>,
 }
 
-impl Node {
-    fn new(item: Item, left: Tree, right: Tree) -> Tree {
+impl<T: Item> Node<T> {
+    fn new(item: T, left: Tree<T>, right: Tree<T>) -> Tree<T> {
         Some(Box::new(Node{ item: item, left: left, right: right }))
     }
 
-    fn merge<'a>(a: &'a Tree, b: &'a Tree) -> Tree {
-        match (a,b) {
+    fn merge<'a>(a: &'a Tree<T>, b: &'a Tree<T>) -> Tree<T> {
+        match (a, b) {
             (None,    None)                       => None,
             (Some(a), None)                       => Some(a.clone()),
             (None,    Some(b))                    => Some(b.clone()),
