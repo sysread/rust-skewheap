@@ -1,18 +1,18 @@
 pub struct SkewHeap {
-    items: u64,
+    size: u64,
     root:  Tree,
 }
 
 impl SkewHeap {
     pub fn new() -> SkewHeap {
         SkewHeap{
-            items: 0,
+            size: 0,
             root:  None,
         }
     }
 
     pub fn is_empty(&self) -> bool {
-        return self.items == 0
+        return self.size == 0
     }
 
     pub fn put(&mut self, item: Item) -> u64 {
@@ -21,20 +21,27 @@ impl SkewHeap {
             None    => Node::new(item, None, None)
         };
 
-        self.items += 1;
+        self.size += 1;
 
-        return self.items
+        return self.size
     }
 
     pub fn get(&mut self) -> Option<Item> {
         return match &self.root {
-            None => None,
+            None    => None,
             Some(r) => {
-                self.items -= 1;
+                self.size -= 1;
                 let item = r.item;
                 self.root = Node::merge(&r.left, &r.right);
                 Some(item)
             }
+        }
+    }
+
+    pub fn peak(&self) -> Option<Item> {
+        return match &self.root {
+            None    => None,
+            Some(r) => Some(r.item),
         }
     }
 }
@@ -74,24 +81,33 @@ mod tests {
         let mut skew = SkewHeap::new();
 
         assert!(skew.is_empty());
+        assert_eq!(skew.peak(), None);
 
         skew.put(10);
+        assert_eq!(skew.peak(), Some(10));
+
         skew.put(3);
+        assert_eq!(skew.peak(), Some(3));
+
         skew.put(15);
+        assert_eq!(skew.peak(), Some(3));
 
-        assert_eq!(skew.items, 3);
+        assert_eq!(skew.size, 3);
         assert!(!skew.is_empty());
 
+        assert_eq!(skew.peak(), Some(3));
         assert_eq!(skew.get(), Some(3));
-        assert_eq!(skew.items, 2);
+        assert_eq!(skew.size, 2);
         assert!(!skew.is_empty());
 
+        assert_eq!(skew.peak(), Some(10));
         assert_eq!(skew.get(), Some(10));
-        assert_eq!(skew.items, 1);
+        assert_eq!(skew.size, 1);
         assert!(!skew.is_empty());
 
+        assert_eq!(skew.peak(), Some(15));
         assert_eq!(skew.get(), Some(15));
-        assert_eq!(skew.items, 0);
+        assert_eq!(skew.size, 0);
         assert!(skew.is_empty());
     }
 }
