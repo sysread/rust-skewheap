@@ -61,7 +61,7 @@ impl<'a, T: Item> SkewHeap<'a, T> {
         return self.size
     }
 
-    pub fn get(&mut self) -> Option<&'a T> {
+    pub fn take(&mut self) -> Option<&'a T> {
         return match &self.root {
             None    => None,
             Some(r) => {
@@ -73,7 +73,7 @@ impl<'a, T: Item> SkewHeap<'a, T> {
         }
     }
 
-    pub fn peak(&self) -> Option<&'a T> {
+    pub fn peek(&self) -> Option<&'a T> {
         return match &self.root {
             None    => None,
             Some(r) => Some(r.item),
@@ -87,37 +87,41 @@ mod tests {
     use super::SkewHeap;
 
     #[test]
-    fn test_ordering() {
+    fn test_positive_path() {
         let mut skew = SkewHeap::new();
 
-        assert!(skew.is_empty());
-        assert_eq!(skew.peak(), None);
+        assert!(skew.is_empty(), "initially empty");
+        assert_eq!(skew.peek(), None, "peek returns None when is_empty");
+        assert_eq!(skew.take(), None, "take returns None when is_empty");
 
-        skew.put(&10);
-        assert_eq!(skew.peak(), Some(&10));
+        assert_eq!(skew.put(&10), 1, "put returns new size");
+        assert_eq!(skew.peek(), Some(&10), "peek returns top entry after put");
+        assert_eq!(skew.size(), 1, "size returns expected count after put");
+        assert!(!skew.is_empty(), "is_empty false after put");
 
-        skew.put(&3);
-        assert_eq!(skew.peak(), Some(&3));
+        assert_eq!(skew.put(&3), 2, "put returns new size");
+        assert_eq!(skew.peek(), Some(&3), "peek returns top entry after put");
+        assert_eq!(skew.size(), 2, "size returns expected count after put");
+        assert!(!skew.is_empty(), "is_empty false after put");
 
-        skew.put(&15);
-        assert_eq!(skew.peak(), Some(&3));
+        assert_eq!(skew.put(&15), 3, "put returns new size");
+        assert_eq!(skew.peek(), Some(&3), "peak returns top entry after put");
+        assert_eq!(skew.size(), 3, "size returns expected count after put");
+        assert!(!skew.is_empty(), "is_empty false after put");
 
-        assert_eq!(skew.size(), 3);
-        assert!(!skew.is_empty());
+        assert_eq!(skew.take(), Some(&3), "take returns top entry");
+        assert_eq!(skew.peek(), Some(&10), "peek returns top entry after take");
+        assert_eq!(skew.size(), 2, "size returns expected count after take");
+        assert!(!skew.is_empty(), "is_empty false when > 0 entries");
 
-        assert_eq!(skew.peak(), Some(&3));
-        assert_eq!(skew.get(), Some(&3));
-        assert_eq!(skew.size(), 2);
-        assert!(!skew.is_empty());
+        assert_eq!(skew.take(), Some(&10), "take returns top entry");
+        assert_eq!(skew.peek(), Some(&15), "peek returns top entry after take");
+        assert_eq!(skew.size(), 1, "size returns expected count after take");
+        assert!(!skew.is_empty(), "is_empty false when > 0 entries");
 
-        assert_eq!(skew.peak(), Some(&10));
-        assert_eq!(skew.get(), Some(&10));
-        assert_eq!(skew.size(), 1);
-        assert!(!skew.is_empty());
-
-        assert_eq!(skew.peak(), Some(&15));
-        assert_eq!(skew.get(), Some(&15));
-        assert_eq!(skew.size(), 0);
-        assert!(skew.is_empty());
+        assert_eq!(skew.take(), Some(&15), "take returns top entry");
+        assert_eq!(skew.peek(), None, "peek returns None after final entry returned by take");
+        assert_eq!(skew.size(), 0, "size is 0 after final entry returned by take");
+        assert!(skew.is_empty(), "is_empty true after final entry returned by take");
     }
 }
