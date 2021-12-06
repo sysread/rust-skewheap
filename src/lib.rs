@@ -1,17 +1,17 @@
-pub trait Item: PartialOrd + Copy {}
-impl<T: PartialOrd + Copy> Item for T {}
+pub trait Item: PartialOrd + Clone {}
+impl<T: PartialOrd + Clone> Item for T {}
 
 
-type Tree<T> = Option<Box<Node<T>>>;
+type Tree<'a, T> = Option<Box<Node<'a, T>>>;
 
 
-pub struct SkewHeap<T: Item> {
+pub struct SkewHeap<'a, T: Item> {
     size: u64,
-    root: Tree<T>,
+    root: Tree<'a, T>,
 }
 
-impl<T: Item> SkewHeap<T> {
-    pub fn new() -> SkewHeap<T> {
+impl<'a, T: Item> SkewHeap<'a, T> {
+    pub fn new() -> SkewHeap<'a, T> {
         SkewHeap{
             size: 0,
             root:  None,
@@ -22,7 +22,7 @@ impl<T: Item> SkewHeap<T> {
         return self.size == 0
     }
 
-    pub fn put(&mut self, item: T) -> u64 {
+    pub fn put(&mut self, item: &'a T) -> u64 {
         self.root = match &self.root {
             Some(r) => Node::merge(&Some(r.clone()), &Node::new(item, None, None)),
             None    => Node::new(item, None, None)
@@ -33,7 +33,7 @@ impl<T: Item> SkewHeap<T> {
         return self.size
     }
 
-    pub fn get(&mut self) -> Option<T> {
+    pub fn get(&mut self) -> Option<&'a T> {
         return match &self.root {
             None    => None,
             Some(r) => {
@@ -45,7 +45,7 @@ impl<T: Item> SkewHeap<T> {
         }
     }
 
-    pub fn peak(&self) -> Option<T> {
+    pub fn peak(&self) -> Option<&'a T> {
         return match &self.root {
             None    => None,
             Some(r) => Some(r.item),
@@ -55,18 +55,18 @@ impl<T: Item> SkewHeap<T> {
 
 
 #[derive(Clone)]
-struct Node<T> {
-    item:  T,
-    left:  Tree<T>,
-    right: Tree<T>,
+struct Node<'a, T: 'a> {
+    item:  &'a T,
+    left:  Tree<'a, T>,
+    right: Tree<'a, T>,
 }
 
-impl<T: Item> Node<T> {
-    fn new(item: T, left: Tree<T>, right: Tree<T>) -> Tree<T> {
+impl<'a, T: Item> Node<'a, T> {
+    fn new(item: &'a T, left: Tree<'a, T>, right: Tree<'a, T>) -> Tree<'a, T> {
         Some(Box::new(Node{ item: item, left: left, right: right }))
     }
 
-    fn merge<'a>(a: &'a Tree<T>, b: &'a Tree<T>) -> Tree<T> {
+    fn merge<'b>(a: &'b Tree<'a, T>, b: &'b Tree<'a, T>) -> Tree<'a, T> {
         match (a, b) {
             (None,    None)                       => None,
             (Some(a), None)                       => Some(a.clone()),
@@ -88,30 +88,30 @@ mod tests {
         assert!(skew.is_empty());
         assert_eq!(skew.peak(), None);
 
-        skew.put(10);
-        assert_eq!(skew.peak(), Some(10));
+        skew.put(&10);
+        assert_eq!(skew.peak(), Some(&10));
 
-        skew.put(3);
-        assert_eq!(skew.peak(), Some(3));
+        skew.put(&3);
+        assert_eq!(skew.peak(), Some(&3));
 
-        skew.put(15);
-        assert_eq!(skew.peak(), Some(3));
+        skew.put(&15);
+        assert_eq!(skew.peak(), Some(&3));
 
         assert_eq!(skew.size, 3);
         assert!(!skew.is_empty());
 
-        assert_eq!(skew.peak(), Some(3));
-        assert_eq!(skew.get(), Some(3));
+        assert_eq!(skew.peak(), Some(&3));
+        assert_eq!(skew.get(), Some(&3));
         assert_eq!(skew.size, 2);
         assert!(!skew.is_empty());
 
-        assert_eq!(skew.peak(), Some(10));
-        assert_eq!(skew.get(), Some(10));
+        assert_eq!(skew.peak(), Some(&10));
+        assert_eq!(skew.get(), Some(&10));
         assert_eq!(skew.size, 1);
         assert!(!skew.is_empty());
 
-        assert_eq!(skew.peak(), Some(15));
-        assert_eq!(skew.get(), Some(15));
+        assert_eq!(skew.peak(), Some(&15));
+        assert_eq!(skew.get(), Some(&15));
         assert_eq!(skew.size, 0);
         assert!(skew.is_empty());
     }
