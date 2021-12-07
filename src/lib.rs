@@ -5,22 +5,22 @@ pub trait Item: PartialOrd + Clone {}
 impl<T: PartialOrd + Clone> Item for T {}
 
 
-type Tree<'a, T> = Option<Box<Node<'a, T>>>;
+type Tree<'node, T> = Option<Box<Node<'node, T>>>;
 
 
 #[derive(Clone)]
-struct Node<'a, T: 'a> {
-    item:  &'a T,
-    left:  Tree<'a, T>,
-    right: Tree<'a, T>,
+struct Node<'node, T: 'node> {
+    item:  &'node T,
+    left:  Tree<'node, T>,
+    right: Tree<'node, T>,
 }
 
-impl<'a, T: Item> Node<'a, T> {
-    fn new(item: &'a T, left: Tree<'a, T>, right: Tree<'a, T>) -> Tree<'a, T> {
+impl<'node, T: Item> Node<'node, T> {
+    fn new(item: &'node T, left: Tree<'node, T>, right: Tree<'node, T>) -> Tree<'node, T> {
         Some(Box::new(Node{ item, left, right }))
     }
 
-    fn merge<'b>(a: &'b Tree<'a, T>, b: &'b Tree<'a, T>) -> Tree<'a, T> {
+    fn merge<'merge>(a: &'merge Tree<'node, T>, b: &'merge Tree<'node, T>) -> Tree<'node, T> {
         match (a, b) {
             (None,    None)                       => None,
             (Some(a), None)                       => Some(a.clone()),
@@ -34,14 +34,14 @@ impl<'a, T: Item> Node<'a, T> {
 
 /// A skew heap is an unbounded priority (min) heap. It is paramaterized by the type of item to be
 /// stored in it. Items must implement PartialOrd and Clone.
-pub struct SkewHeap<'a, T: Item> {
+pub struct SkewHeap<'heap, T: Item> {
     size: u64,
-    root: Tree<'a, T>,
+    root: Tree<'heap, T>,
 }
 
-impl<'a, T: Item> SkewHeap<'a, T> {
+impl<'heap, T: Item> SkewHeap<'heap, T> {
     /// Returns a new SkewHeap
-    pub fn new() -> SkewHeap<'a, T> {
+    pub fn new() -> SkewHeap<'heap, T> {
         SkewHeap{
             size: 0,
             root: None,
@@ -59,7 +59,7 @@ impl<'a, T: Item> SkewHeap<'a, T> {
     }
 
     /// Inserts an item into the heap and returns the new size
-    pub fn put(&mut self, item: &'a T) -> u64 {
+    pub fn put(&mut self, item: &'heap T) -> u64 {
         self.root = match &self.root {
             Some(r) => Node::merge(&Some(r.clone()), &Node::new(item, None, None)),
             None    => Node::new(item, None, None)
@@ -71,7 +71,7 @@ impl<'a, T: Item> SkewHeap<'a, T> {
     }
 
     /// Removes and retrieves the top item from the heap
-    pub fn take(&mut self) -> Option<&'a T> {
+    pub fn take(&mut self) -> Option<&'heap T> {
         return match &self.root {
             None    => None,
             Some(r) => {
@@ -84,7 +84,7 @@ impl<'a, T: Item> SkewHeap<'a, T> {
     }
 
     /// Retrieves the top item from the heap without removing it
-    pub fn peek(&self) -> Option<&'a T> {
+    pub fn peek(&self) -> Option<&'heap T> {
         return match &self.root {
             None    => None,
             Some(r) => Some(r.item),
