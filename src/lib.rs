@@ -1,26 +1,26 @@
 //! A mergeable priority heap
 
 /// Parameterizes the SkewHeap. Items stored in the heap are prioritized in ascending order.
-pub trait Item: PartialOrd + Clone {}
-impl<T: PartialOrd + Clone> Item for T {}
+pub trait Item: PartialOrd + Copy {}
+impl<T: PartialOrd + Copy> Item for T {}
 
 
-type Tree<'node, T> = Option<Box<Node<'node, T>>>;
+type Tree<T> = Option<Box<Node<T>>>;
 
 
 #[derive(Clone)]
-struct Node<'node, T: 'node> {
-    item:  &'node T,
-    left:  Tree<'node, T>,
-    right: Tree<'node, T>,
+struct Node<T> {
+    item:  T,
+    left:  Tree<T>,
+    right: Tree<T>,
 }
 
-impl<'node, T: Item> Node<'node, T> {
-    fn new(item: &'node T, left: Tree<'node, T>, right: Tree<'node, T>) -> Tree<'node, T> {
+impl<T: Item> Node<T> {
+    fn new(item: T, left: Tree<T>, right: Tree<T>) -> Tree<T> {
         Some(Box::new(Node{ item, left, right }))
     }
 
-    fn merge<'merge>(a: &'merge Tree<'node, T>, b: &'merge Tree<'node, T>) -> Tree<'node, T> {
+    fn merge<'merge>(a: &'merge Tree<T>, b: &'merge Tree<T>) -> Tree<T> {
         match (a, b) {
             (None,    None)                       => None,
             (Some(a), None)                       => Some(a.clone()),
@@ -34,14 +34,14 @@ impl<'node, T: Item> Node<'node, T> {
 
 /// A skew heap is an unbounded priority (min) heap. It is paramaterized by the type of item to be
 /// stored in it. Items must implement PartialOrd and Clone.
-pub struct SkewHeap<'heap, T: Item> {
+pub struct SkewHeap<T: Item> {
     size: u64,
-    root: Tree<'heap, T>,
+    root: Tree<T>,
 }
 
-impl<'heap, T: Item> SkewHeap<'heap, T> {
+impl<T: Item> SkewHeap<T> {
     /// Returns a new SkewHeap
-    pub fn new() -> SkewHeap<'heap, T> {
+    pub fn new() -> SkewHeap<T> {
         SkewHeap{
             size: 0,
             root: None,
@@ -59,7 +59,7 @@ impl<'heap, T: Item> SkewHeap<'heap, T> {
     }
 
     /// Inserts an item into the heap and returns the new size
-    pub fn put(&mut self, item: &'heap T) -> u64 {
+    pub fn put(&mut self, item: T) -> u64 {
         self.root = match &self.root {
             Some(r) => Node::merge(&Some(r.clone()), &Node::new(item, None, None)),
             None    => Node::new(item, None, None)
@@ -71,7 +71,7 @@ impl<'heap, T: Item> SkewHeap<'heap, T> {
     }
 
     /// Removes and retrieves the top item from the heap
-    pub fn take(&mut self) -> Option<&'heap T> {
+    pub fn take(&mut self) -> Option<T> {
         return match &self.root {
             None    => None,
             Some(r) => {
@@ -84,7 +84,7 @@ impl<'heap, T: Item> SkewHeap<'heap, T> {
     }
 
     /// Retrieves the top item from the heap without removing it
-    pub fn peek(&self) -> Option<&'heap T> {
+    pub fn peek(&self) -> Option<T> {
         return match &self.root {
             None    => None,
             Some(r) => Some(r.item),
@@ -105,32 +105,32 @@ mod tests {
         assert_eq!(skew.peek(), None, "peek returns None when is_empty");
         assert_eq!(skew.take(), None, "take returns None when is_empty");
 
-        assert_eq!(skew.put(&10), 1, "put returns new size");
-        assert_eq!(skew.peek(), Some(&10), "peek returns top entry after put");
+        assert_eq!(skew.put(10), 1, "put returns new size");
+        assert_eq!(skew.peek(), Some(10), "peek returns top entry after put");
         assert_eq!(skew.size(), 1, "size returns expected count after put");
         assert!(!skew.is_empty(), "is_empty false after put");
 
-        assert_eq!(skew.put(&3), 2, "put returns new size");
-        assert_eq!(skew.peek(), Some(&3), "peek returns top entry after put");
+        assert_eq!(skew.put(3), 2, "put returns new size");
+        assert_eq!(skew.peek(), Some(3), "peek returns top entry after put");
         assert_eq!(skew.size(), 2, "size returns expected count after put");
         assert!(!skew.is_empty(), "is_empty false after put");
 
-        assert_eq!(skew.put(&15), 3, "put returns new size");
-        assert_eq!(skew.peek(), Some(&3), "peak returns top entry after put");
+        assert_eq!(skew.put(15), 3, "put returns new size");
+        assert_eq!(skew.peek(), Some(3), "peak returns top entry after put");
         assert_eq!(skew.size(), 3, "size returns expected count after put");
         assert!(!skew.is_empty(), "is_empty false after put");
 
-        assert_eq!(skew.take(), Some(&3), "take returns top entry");
-        assert_eq!(skew.peek(), Some(&10), "peek returns top entry after take");
+        assert_eq!(skew.take(), Some(3), "take returns top entry");
+        assert_eq!(skew.peek(), Some(10), "peek returns top entry after take");
         assert_eq!(skew.size(), 2, "size returns expected count after take");
         assert!(!skew.is_empty(), "is_empty false when > 0 entries");
 
-        assert_eq!(skew.take(), Some(&10), "take returns top entry");
-        assert_eq!(skew.peek(), Some(&15), "peek returns top entry after take");
+        assert_eq!(skew.take(), Some(10), "take returns top entry");
+        assert_eq!(skew.peek(), Some(15), "peek returns top entry after take");
         assert_eq!(skew.size(), 1, "size returns expected count after take");
         assert!(!skew.is_empty(), "is_empty false when > 0 entries");
 
-        assert_eq!(skew.take(), Some(&15), "take returns top entry");
+        assert_eq!(skew.take(), Some(15), "take returns top entry");
         assert_eq!(skew.peek(), None, "peek returns None after final entry returned by take");
         assert_eq!(skew.size(), 0, "size is 0 after final entry returned by take");
         assert!(skew.is_empty(), "is_empty true after final entry returned by take");
