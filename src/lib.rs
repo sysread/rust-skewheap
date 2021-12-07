@@ -25,7 +25,7 @@ impl<'node, T: Item> Node<'node, T> {
             (None,    None)                       => None,
             (Some(a), None)                       => Some(a.clone()),
             (None,    Some(b))                    => Some(b.clone()),
-            (Some(a), Some(b)) if a.item > b.item => Node::merge(&Some(b.clone()), &Some(a.clone())),
+            (Some(a), Some(b)) if a.item > b.item => Node::new(b.item, Node::merge(&b.right, &Some(a.clone())), b.left.clone()),
             (Some(a), Some(b))                    => Node::new(a.item, Node::merge(&a.right, &Some(b.clone())), a.left.clone()),
         }
     }
