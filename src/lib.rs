@@ -20,7 +20,7 @@ impl<T: Item> Node<T> {
         Some(Box::new(Node{ item, left, right }))
     }
 
-    fn merge<'merge>(a: &'merge Tree<T>, b: &'merge Tree<T>) -> Tree<T> {
+    fn merge(a: &Tree<T>, b: &Tree<T>) -> Tree<T> {
         match (a, b) {
             (None,    None)                       => None,
             (Some(a), None)                       => Some(a.clone()),
