@@ -1,14 +1,16 @@
 //! A mergeable priority heap
+use std::collections::{VecDeque};
 
 /// Parameterizes the SkewHeap. Items stored in the heap are prioritized in ascending order.
-pub trait Item: PartialOrd + Copy {}
-impl<T: PartialOrd + Copy> Item for T {}
+pub trait Item: Ord + Copy {}
+impl<T: Ord + Copy> Item for T {}
 
 
-type Tree<T> = Option<Box<Node<T>>>;
+type BoxedNode<T> = Box<Node<T>>;
+type Tree<T> = Option<BoxedNode<T>>;
 
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct Node<T> {
     item:  T,
     left:  Tree<T>,
@@ -20,14 +22,49 @@ impl<T: Item> Node<T> {
         Some(Box::new(Node{ item, left, right }))
     }
 
-    fn merge(a: &Tree<T>, b: &Tree<T>) -> Tree<T> {
-        match (a, b) {
-            (None,    None)                       => None,
-            (Some(a), None)                       => Some(a.clone()),
-            (None,    Some(b))                    => Some(b.clone()),
-            (Some(a), Some(b)) if a.item > b.item => Node::new(b.item, Node::merge(&b.right, &Some(a.clone())), b.left.clone()),
-            (Some(a), Some(b))                    => Node::new(a.item, Node::merge(&a.right, &Some(b.clone())), a.left.clone()),
+    fn merge (a: Tree<T>, b: Tree<T>) -> Tree<T> {
+        let mut queue: VecDeque<BoxedNode<T>> = VecDeque::new();
+        let mut trees: VecDeque<BoxedNode<T>> = VecDeque::new();
+
+        if let Some(a) = a {
+            queue.push_back(a);
         }
+
+        if let Some(b) = b {
+            queue.push_back(b);
+        }
+
+        while queue.len() > 0 {
+            if let Some(mut node) = queue.pop_front() {
+                if let Some(right) = node.right {
+                    queue.push_back(right);
+                    node.right = None;
+                }
+
+                trees.push_back(node);
+            }
+        }
+
+        trees.make_contiguous().sort();
+
+        // Reduce right, merging the ultimate node into the penultimate node until there is only
+        // one left.
+        while trees.len() > 1 {
+            if let Some(ult) = trees.pop_back() {
+                if let Some(mut penult) = trees.pop_back() {
+                    // Swap the left and right if the penultimate node has a left subtree. Its
+                    // right subtree has already been cut.
+                    if let Some(left) = penult.left {
+                        penult.right = Some(left);
+                    }
+
+                    penult.left = Some(ult);
+                    trees.push_back(penult);
+                }
+            }
+        }
+
+        trees.pop_front()
     }
 }
 
@@ -61,7 +98,7 @@ impl<T: Item> SkewHeap<T> {
     /// Inserts an item into the heap and returns the new size
     pub fn put(&mut self, item: T) -> u64 {
         self.root = match &self.root {
-            Some(r) => Node::merge(&Some(r.clone()), &Node::new(item, None, None)),
+            Some(r) => Node::merge(Some(r.clone()), Node::new(item, None, None)),
             None    => Node::new(item, None, None)
         };
 
@@ -77,7 +114,7 @@ impl<T: Item> SkewHeap<T> {
             Some(r) => {
                 self.size -= 1;
                 let item = r.item;
-                self.root = Node::merge(&r.left, &r.right);
+                self.root = Node::merge(r.left.clone(), r.right.clone());
                 Some(item)
             }
         }
