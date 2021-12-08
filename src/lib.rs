@@ -1,5 +1,5 @@
 //! A mergeable priority heap
-use std::collections::{VecDeque};
+use std::collections::VecDeque;
 
 /// Parameterizes the SkewHeap. Items stored in the heap are prioritized in ascending order.
 pub trait Item: Ord + Copy {}
@@ -34,20 +34,25 @@ impl<T: Item> Node<T> {
             queue.push_back(b);
         }
 
+        // Cut right subtrees from each path
         while queue.len() > 0 {
             if let Some(mut node) = queue.pop_front() {
+                // Remove the right node and add it to the queue, if present.
                 if let Some(right) = node.right {
                     queue.push_back(right);
                     node.right = None;
                 }
 
+                // Add the node to the list of cut nodes
                 trees.push_back(node);
             }
         }
 
+        // Sort the collected subtrees
         trees.make_contiguous().sort();
 
-        // Reduce right, merging the ultimate node into the penultimate node until there is only
+        // Reduce right by popping off the back of the list, using the final/ultimate node as our
+        // accumulator, merging the ultimate node into the penultimate node until there is only
         // one left.
         while trees.len() > 1 {
             if let Some(ult) = trees.pop_back() {
@@ -58,7 +63,10 @@ impl<T: Item> Node<T> {
                         penult.right = Some(left);
                     }
 
+                    // Set the penultimate's left child to be the previous ultimate
                     penult.left = Some(ult);
+
+                    // Now make the penultimate be the ultimate node in the list
                     trees.push_back(penult);
                 }
             }
