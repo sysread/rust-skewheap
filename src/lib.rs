@@ -106,8 +106,8 @@ impl<T: Item> SkewHeap<T> {
     /// Inserts an item into the heap and returns the new size
     pub fn put(&mut self, item: T) -> u64 {
         self.root = match &self.root {
+            None    => Node::new(item, None, None),
             Some(r) => Node::merge(Some(r.clone()), Node::new(item, None, None)),
-            None    => Node::new(item, None, None)
         };
 
         self.size += 1;
