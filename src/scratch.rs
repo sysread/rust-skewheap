@@ -4,7 +4,7 @@ use rand::seq::SliceRandom;
 use skewheap::SkewHeap;
 
 pub fn main() {
-    let counts = [1_000, 5_000, 10_000];
+    let counts = [1_000, 5_000, 10_000, 15_000, 20_000];
 
     for count in counts {
         let mut vec: Vec<u32> = (0..count).collect();
