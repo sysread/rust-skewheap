@@ -8,18 +8,21 @@ impl<T: PartialOrd + Copy> Item for T {}
 type Index  = usize;
 type Handle = Option<Index>;
 
-struct Node<T> {
-    item:  Option<T>,
-    left:  Handle,
-    right: Handle,
+#[derive(Debug)]
+pub struct Node<T> {
+    item:   Option<T>,
+    left:   Handle,
+    right:  Handle,
+    parent: Handle,
 }
 
 impl<T: Item> Node<T> {
     fn new(item: Option<T>) -> Node<T> {
         Node{
-            item:  item,
-            left:  None,
-            right: None,
+            item:   item,
+            left:   None,
+            right:  None,
+            parent: None,
         }
     }
 }
@@ -38,6 +41,7 @@ impl<T: Item> PartialOrd for Node<T> {
 
 /// A skew heap is an unbounded priority (min) heap. It is paramaterized by the type of item to be
 /// stored in it. Items must implement PartialOrd and Clone.
+#[derive(Debug)]
 pub struct SkewHeap<T> {
     count: usize,
     root:  Handle,
@@ -81,6 +85,11 @@ impl<T: Item> SkewHeap<T> {
             self.count -= 1;
             self.root = self.merge(self.nodes[root].left, self.nodes[root].right);
             self.free_node(root);
+
+            if self.needs_defrag() {
+                self.defrag();
+            }
+
             item
         } else {
             None
@@ -102,9 +111,20 @@ impl<T: Item> SkewHeap<T> {
             (None,    Some(b))                                  => Some(b),
             (Some(a), Some(b)) if self.nodes[a] > self.nodes[b] => self.merge(Some(b), Some(a)),
             (Some(a), Some(b))                                  => {
-                let tmp = self.nodes[a].right;
+                // Build a new node from b and a's right child
+                let new_left_node = self.merge(Some(b), self.nodes[a].right);
+
+                // Move a's left node to the right side
                 self.nodes[a].right = self.nodes[a].left;
-                self.nodes[a].left = self.merge(Some(b), tmp);
+
+                // Replace a's left node with the merger of b and a's right node
+                self.nodes[a].left = new_left_node;
+
+                // Set the parent of the newlb merged left node to be a
+                if let Some(new_left_node_ida) = new_left_node {
+                    self.nodes[new_left_node_ida].parent = Some(a);
+                }
+
                 Some(a)
             },
         }
@@ -121,10 +141,96 @@ impl<T: Item> SkewHeap<T> {
     }
 
     fn free_node(&mut self, idx: Index) {
-        self.nodes[idx].left  = None;
-        self.nodes[idx].right = None;
-        self.nodes[idx].item  = None;
+        self.nodes[idx].item = None;
         self.freed.push_back(idx);
+    }
+
+    fn realloc_node(&mut self, from: Index) -> Handle {
+        // Reorder freed indices to move lower indices to the front
+        self.freed.make_contiguous().sort();
+
+        // First free slot is further back in nodes than our subject node's current index
+        if let Some(first) = self.freed.front() {
+            if *first > from {
+                return None;
+            }
+        }
+
+        if let Some(to) = self.freed.pop_front() {
+            // Copy from's data info to's memory
+            self.nodes[to].left   = self.nodes[from].left;
+            self.nodes[to].right  = self.nodes[from].right;
+            self.nodes[to].parent = self.nodes[from].parent;
+            self.nodes[to].item   = self.nodes[from].item;
+
+            // Update the parent's child link
+            if let Some(parent_id) = self.nodes[to].parent {
+                if self.nodes[parent_id].left == Some(from) {
+                    self.nodes[parent_id].left = Some(to);
+                } else if self.nodes[parent_id].right == Some(from) {
+                    self.nodes[parent_id].right = Some(to);
+                }
+            }
+
+            // Update the left child's parent link
+            if let Some(left_id) = self.nodes[to].left {
+                self.nodes[left_id].parent = Some(to);
+            }
+
+            // Update the right child's parent link
+            if let Some(right_id) = self.nodes[to].right {
+                self.nodes[right_id].parent = Some(to);
+            }
+
+            // Clear the old from and add it back to the pot
+            self.free_node(from);
+
+            Some(to)
+        } else {
+            None
+        }
+    }
+
+    fn needs_defrag(&mut self) -> bool {
+        // at least 100 items and > 90% of them are freed
+        self.nodes.len() >= 100 && self.freed.len() > (9 * (self.nodes.len() / 10))
+    }
+
+    fn defrag(&mut self) {
+        // Walk backwards over the allocated node list
+        let mut i = self.nodes.len() - 1;
+
+        loop {
+            if !self.needs_defrag() {
+                break;
+            }
+
+            // Some(item) means it's allocated
+            if let Some(_) = self.nodes[i].item {
+                // Move it to the next index in self.freed. None means it ran out of free indices.
+                if let Some(new_index) = self.realloc_node(i) {
+                    // If the current index is our root node, update self.root.
+                    if self.root == Some(i) {
+                        self.root = Some(new_index);
+                    }
+                } else {
+                    break;
+                }
+            }
+
+            if i > 0 {
+                i -= 1;
+            } else {
+                break;
+            }
+        }
+
+        // Now that all nodes have been relocated to the front of self.nodes, prune back the empty
+        // slots and clear freed.
+        if i < self.nodes.len() - 1 { // at least one freed slot was used
+            self.nodes.truncate(self.nodes.len() - self.freed.len());
+            self.freed.clear();
+        }
     }
 }
 
