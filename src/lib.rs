@@ -2,7 +2,6 @@
 
 /*
  * TODO:
- *      -garbage-collect dead nodes out of the vector
  *      -store ref to item so it needn't be copied
  */
 
