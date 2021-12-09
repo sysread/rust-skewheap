@@ -10,7 +10,7 @@ use std::collections::VecDeque;
 pub trait Item: Ord + Copy {}
 impl<T: Ord + Copy> Item for T {}
 
-type Index = usize;
+type Index  = usize;
 type Handle = Option<Index>;
 
 struct Node<T> {
@@ -116,6 +116,7 @@ impl<T: Item> SkewHeap<T> {
     fn free_node(&mut self, idx: Index) {
         self.nodes[idx].left  = None;
         self.nodes[idx].right = None;
+        self.nodes[idx].item  = None;
         self.freed.push_back(idx);
     }
 
