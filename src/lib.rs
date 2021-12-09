@@ -6,15 +6,18 @@
  *      -store ref to item so it needn't be copied
  */
 
+use std::collections::VecDeque;
+
 pub trait Item: Ord + Copy {}
 impl<T: Ord + Copy> Item for T {}
 
-type Index = Option<usize>;
+type Index = usize;
+type Handle = Option<Index>;
 
 struct Node<T> {
     item:  Option<T>,
-    left:  Index,
-    right: Index,
+    left:  Handle,
+    right: Handle,
 }
 
 impl<T: Item> Node<T> {
@@ -31,8 +34,9 @@ impl<T: Item> Node<T> {
 /// stored in it. Items must implement PartialOrd and Clone.
 pub struct SkewHeap<T> {
     count: usize,
-    root:  Index,
+    root:  Handle,
     nodes: Vec<Node<T>>,
+    freed: VecDeque<Index>,
 }
 
 impl<T: Item> SkewHeap<T> {
@@ -42,6 +46,7 @@ impl<T: Item> SkewHeap<T> {
             count: 0,
             root:  None,
             nodes: Vec::new(),
+            freed: VecDeque::new(),
         }
     }
 
@@ -80,8 +85,11 @@ impl<T: Item> SkewHeap<T> {
             let left  = self.nodes[root].left;
             let right = self.nodes[root].right;
 
+            self.free_node(root);
+
             self.count -= 1;
             self.root = self.merge(left, right);
+
             item
         } else {
             None
@@ -96,12 +104,23 @@ impl<T: Item> SkewHeap<T> {
         }
     }
 
-    fn alloc_node(&mut self, item: T) -> Index {
-        self.nodes.push(Node::new(Some(item)));
-        Some(self.nodes.len() - 1)
+    fn alloc_node(&mut self, item: T) -> Handle {
+        if let Some(idx) = self.freed.pop_front() {
+            self.nodes[idx].item = Some(item);
+            Some(idx)
+        } else {
+            self.nodes.push(Node::new(Some(item)));
+            Some(self.nodes.len() - 1)
+        }
     }
 
-    fn merge(&mut self, a: Index, b: Index) -> Index {
+    fn free_node(&mut self, idx: Index) {
+        self.nodes[idx].left  = None;
+        self.nodes[idx].right = None;
+        self.freed.push_back(idx);
+    }
+
+    fn merge(&mut self, a: Handle, b: Handle) -> Handle {
         match (a, b) {
             (None,    None)                                               => None,
             (Some(a), None)                                               => Some(a),
