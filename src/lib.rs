@@ -56,15 +56,9 @@ impl<T: Item> SkewHeap<T> {
 
     /// Inserts an item into the heap and returns the new size
     pub fn put(&mut self, item: T) -> usize {
-        self.count += 1;
         let node = self.alloc_node(item);
-
-        if self.count == 1 {
-            self.root = node;
-        } else {
-            self.root = self.merge(self.root, node);
-        }
-
+        self.root = self.merge(self.root, node);
+        self.count += 1;
         self.count
     }
 
