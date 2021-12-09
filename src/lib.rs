@@ -1,10 +1,5 @@
 //! A mergeable priority heap
 
-/*
- * TODO:
- *      -store ref to item so it needn't be copied
- */
-
 use std::collections::VecDeque;
 
 pub trait Item: Ord + Copy {}
