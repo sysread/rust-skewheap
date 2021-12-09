@@ -103,6 +103,21 @@ impl<T: Item> SkewHeap<T> {
         }
     }
 
+    fn merge(&mut self, a: Handle, b: Handle) -> Handle {
+        match (a, b) {
+            (None,    None)                                               => None,
+            (Some(a), None)                                               => Some(a),
+            (None,    Some(b))                                            => Some(b),
+            (Some(a), Some(b)) if self.nodes[a].item > self.nodes[b].item => self.merge(Some(b), Some(a)),
+            (Some(a), Some(b))                                            => {
+                let tmp = self.nodes[a].right;
+                self.nodes[a].right = self.nodes[a].left;
+                self.nodes[a].left = self.merge(Some(b), tmp);
+                Some(a)
+            },
+        }
+    }
+
     fn alloc_node(&mut self, item: T) -> Handle {
         if let Some(idx) = self.freed.pop_front() {
             self.nodes[idx].item = Some(item);
@@ -118,21 +133,6 @@ impl<T: Item> SkewHeap<T> {
         self.nodes[idx].right = None;
         self.nodes[idx].item  = None;
         self.freed.push_back(idx);
-    }
-
-    fn merge(&mut self, a: Handle, b: Handle) -> Handle {
-        match (a, b) {
-            (None,    None)                                               => None,
-            (Some(a), None)                                               => Some(a),
-            (None,    Some(b))                                            => Some(b),
-            (Some(a), Some(b)) if self.nodes[a].item > self.nodes[b].item => self.merge(Some(b), Some(a)),
-            (Some(a), Some(b))                                            => {
-                let tmp = self.nodes[a].right;
-                self.nodes[a].right = self.nodes[a].left;
-                self.nodes[a].left = self.merge(Some(b), tmp);
-                Some(a)
-            },
-        }
     }
 }
 
