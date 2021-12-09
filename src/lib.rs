@@ -64,20 +64,11 @@ impl<T: Item> SkewHeap<T> {
 
     /// Removes and retrieves the top item from the heap
     pub fn take(&mut self) -> Option<T> {
-        if self.count == 0 {
-            return None
-        }
-
         if let Some(root) = self.root {
-            let item  = self.nodes[root].item;
-            let left  = self.nodes[root].left;
-            let right = self.nodes[root].right;
-
-            self.free_node(root);
-
+            let item = self.nodes[root].item;
             self.count -= 1;
-            self.root = self.merge(left, right);
-
+            self.root = self.merge(self.nodes[root].left, self.nodes[root].right);
+            self.free_node(root);
             item
         } else {
             None
