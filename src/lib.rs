@@ -24,6 +24,18 @@ impl<T: Item> Node<T> {
     }
 }
 
+impl<T: Item> PartialEq for Node<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.item.eq(&other.item)
+    }
+}
+
+impl<T: Item> PartialOrd for Node<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.item.partial_cmp(&other.item)
+    }
+}
+
 /// A skew heap is an unbounded priority (min) heap. It is paramaterized by the type of item to be
 /// stored in it. Items must implement PartialOrd and Clone.
 pub struct SkewHeap<T> {
@@ -85,11 +97,11 @@ impl<T: Item> SkewHeap<T> {
 
     fn merge(&mut self, a: Handle, b: Handle) -> Handle {
         match (a, b) {
-            (None,    None)                                               => None,
-            (Some(a), None)                                               => Some(a),
-            (None,    Some(b))                                            => Some(b),
-            (Some(a), Some(b)) if self.nodes[a].item > self.nodes[b].item => self.merge(Some(b), Some(a)),
-            (Some(a), Some(b))                                            => {
+            (None,    None)                                     => None,
+            (Some(a), None)                                     => Some(a),
+            (None,    Some(b))                                  => Some(b),
+            (Some(a), Some(b)) if self.nodes[a] > self.nodes[b] => self.merge(Some(b), Some(a)),
+            (Some(a), Some(b))                                  => {
                 let tmp = self.nodes[a].right;
                 self.nodes[a].right = self.nodes[a].left;
                 self.nodes[a].left = self.merge(Some(b), tmp);
