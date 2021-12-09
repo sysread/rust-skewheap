@@ -128,6 +128,34 @@ impl<T: Item> SkewHeap<T> {
     }
 }
 
+impl<T: Item + std::fmt::Display> SkewHeap<T> {
+    /// Prints out the entire tree structure for debugging
+    pub fn explain(&self) {
+        println!("SkewHeap<size={}>", self.count);
+
+        if let Some(root) = self.root {
+            self._explain(root, 1);
+        }
+    }
+
+    fn _explain(&self, node: Index, indent: usize) {
+        let indent_str = format!("{:width$}", "", width=(indent * 3));
+
+        if let Some(value) = self.nodes[node].item {
+            println!("{}Node: {}", indent_str, value);
+
+            if let Some(left) = self.nodes[node].left {
+                println!("{}   Left:", indent_str);
+                self._explain(left, indent + 2);
+            }
+
+            if let Some(right) = self.nodes[node].right {
+                println!("{}   Right:", indent_str);
+                self._explain(right, indent + 2);
+            }
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
