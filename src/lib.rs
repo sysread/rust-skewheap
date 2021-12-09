@@ -2,8 +2,8 @@
 
 use std::collections::VecDeque;
 
-pub trait Item: Ord + Copy {}
-impl<T: Ord + Copy> Item for T {}
+pub trait Item: PartialOrd + Copy {}
+impl<T: PartialOrd + Copy> Item for T {}
 
 type Index  = usize;
 type Handle = Option<Index>;
