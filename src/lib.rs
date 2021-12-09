@@ -51,7 +51,7 @@ impl<T: Item> SkewHeap<T> {
 
     /// Returns true if there are no items currently in the SkewHeap
     pub fn is_empty(&self) -> bool {
-        return self.count == 0
+        self.count == 0
     }
 
     /// Inserts an item into the heap and returns the new size
