@@ -121,8 +121,8 @@ impl<T: Item> SkewHeap<T> {
                 self.nodes[a].left = new_left_node;
 
                 // Set the parent of the newlb merged left node to be a
-                if let Some(new_left_node_ida) = new_left_node {
-                    self.nodes[new_left_node_ida].parent = Some(a);
+                if let Some(new_left_node_idx) = new_left_node {
+                    self.nodes[new_left_node_idx].parent = Some(a);
                 }
 
                 Some(a)
