@@ -87,7 +87,7 @@ impl<T: Item> SkewHeap<T> {
             self.free_node(root);
 
             if self.needs_defrag() {
-                self.defrag();
+                self.defrag(false);
             }
 
             item
@@ -128,6 +128,33 @@ impl<T: Item> SkewHeap<T> {
                 Some(a)
             },
         }
+    }
+
+    /// Merge another skew heap into this one, while leaving the other skew heap intact.
+    pub fn adopt(&mut self, other: &mut SkewHeap<T>) {
+        self.defrag(true);
+        other.defrag(true);
+
+        // Copy all nodes from other directly into our allocation vector
+        let offset = self.nodes.len();
+        self.nodes.reserve_exact(other.nodes.len());
+
+        for node in &other.nodes {
+            if let Some(item) = node.item {
+                if let Some(new_index) = self.alloc_node(item) {
+                    if let Some(left) = node.left {
+                        self.nodes[new_index].left = Some(left + offset);
+                    }
+
+                    if let Some(right) = node.right {
+                        self.nodes[new_index].right = Some(right + offset);
+                    }
+                }
+            }
+        }
+
+        self.root = self.merge(self.root, Some(offset));
+        self.count += other.count;
     }
 
     fn alloc_node(&mut self, item: T) -> Handle {
@@ -196,12 +223,12 @@ impl<T: Item> SkewHeap<T> {
         self.nodes.len() >= 100 && self.freed.len() > (90 * self.nodes.len() / 100)
     }
 
-    fn defrag(&mut self) {
+    fn defrag(&mut self, force_full: bool) {
         // Walk backwards over the allocated node list
         let mut i = self.nodes.len() - 1;
 
         loop {
-            if !self.needs_defrag() {
+            if !force_full && !self.needs_defrag() {
                 break;
             }
 
@@ -304,5 +331,32 @@ mod tests {
         assert_eq!(skew.peek(), None, "peek returns None after final entry returned by take");
         assert_eq!(skew.size(), 0, "size is 0 after final entry returned by take");
         assert!(skew.is_empty(), "is_empty true after final entry returned by take");
+    }
+
+    #[test]
+    fn test_merge_heaps() {
+        let mut a = SkewHeap::new();
+        a.put(1);
+        a.put(2);
+        a.put(3);
+
+        let mut b = SkewHeap::new();
+        b.put(4);
+        b.put(5);
+        b.put(6);
+
+        a.adopt(&mut b);
+        assert_eq!(a.size(), 6);
+        assert_eq!(a.take(), Some(1));
+        assert_eq!(a.take(), Some(2));
+        assert_eq!(a.take(), Some(3));
+        assert_eq!(a.take(), Some(4));
+        assert_eq!(a.take(), Some(5));
+        assert_eq!(a.take(), Some(6));
+
+        assert_eq!(b.size(), 3);
+        assert_eq!(b.take(), Some(4));
+        assert_eq!(b.take(), Some(5));
+        assert_eq!(b.take(), Some(6));
     }
 }
