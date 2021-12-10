@@ -193,7 +193,7 @@ impl<T: Item> SkewHeap<T> {
 
     fn needs_defrag(&mut self) -> bool {
         // at least 100 items and > 90% of them are freed
-        self.nodes.len() >= 100 && self.freed.len() > (9 * (self.nodes.len() / 10))
+        self.nodes.len() >= 100 && self.freed.len() > (90 * self.nodes.len() / 100)
     }
 
     fn defrag(&mut self) {
