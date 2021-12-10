@@ -9,7 +9,7 @@ type Index  = usize;
 type Handle = Option<Index>;
 
 #[derive(Debug)]
-pub struct Node<T> {
+struct Node<T> {
     item:   Option<T>,
     left:   Handle,
     right:  Handle,
