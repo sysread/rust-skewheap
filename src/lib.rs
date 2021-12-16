@@ -2,51 +2,83 @@
 
 use std::collections::VecDeque;
 
+
 pub trait Item: PartialOrd + Copy {}
 impl<T: PartialOrd + Copy> Item for T {}
 
-type Index  = usize;
-type Handle = Option<Index>;
 
 #[derive(Debug)]
 struct Node<T> {
-    item:   Option<T>,
-    left:   Handle,
-    right:  Handle,
-    parent: Handle,
+    item:  T,
+    left:  *mut Node<T>,
+    right: *mut Node<T>,
 }
 
 impl<T: Item> Node<T> {
-    fn new(item: Option<T>) -> Node<T> {
-        Node{
-            item:   item,
-            left:   None,
-            right:  None,
-            parent: None,
+    fn new(item: T) -> *mut Self {
+        Box::into_raw(Box::new(Self {
+            item:  item,
+            left:  std::ptr::null_mut(),
+            right: std::ptr::null_mut(),
+        }))
+    }
+
+    fn merge(a: *mut Self, b: *mut Self) -> *mut Self {
+        if a.is_null() {
+            return b
+        }
+
+        if b.is_null() {
+            return a
+        }
+
+        unsafe {
+            // Swap args to preserve correct ordering if a > b
+            if (*a).item > (*b).item {
+                return Node::merge(b, a)
+            }
+
+            // Build a new node from b and a's right child
+            let new_left_node = Node::merge(b, (*a).right);
+
+            // Move a's left node to the right side
+            (*a).right = (*a).left;
+
+            // Replace a's left node with the merger of b and a's right node
+            (*a).left = new_left_node;
+
+            return a;
         }
     }
 }
 
-impl<T: Item> PartialEq for Node<T> {
-    fn eq(&self, other: &Self) -> bool {
-        self.item.eq(&other.item)
+impl<T: Item + std::fmt::Display> Node<T> {
+    pub fn explain(&self, indent: usize) {
+        let indent_str = format!("{:width$}", "", width=(indent * 3));
+
+        unsafe {
+            println!("{}Node: {}", indent_str, (*self).item);
+
+            if !(*self).left.is_null() {
+                println!("{}   Left:", indent_str);
+                (*(*self).left).explain(indent + 2);
+            }
+
+            if !(*self).right.is_null() {
+                println!("{}   Right:", indent_str);
+                (*(*self).right).explain(indent + 2);
+            }
+        }
     }
 }
 
-impl<T: Item> PartialOrd for Node<T> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.item.partial_cmp(&other.item)
-    }
-}
 
 /// A skew heap is an unbounded priority (min) heap. It is paramaterized by the type of item to be
 /// stored in it. Items must implement PartialOrd and Clone.
 #[derive(Debug)]
 pub struct SkewHeap<T> {
     count: usize,
-    root:  Handle,
-    nodes: Vec<Node<T>>,
-    freed: VecDeque<Index>,
+    root:  *mut Node<T>,
 }
 
 impl<T: Item> SkewHeap<T> {
@@ -54,9 +86,7 @@ impl<T: Item> SkewHeap<T> {
     pub fn new() -> Self {
         Self {
             count: 0,
-            root:  None,
-            nodes: Vec::new(),
-            freed: VecDeque::new(),
+            root:  std::ptr::null_mut(),
         }
     }
 
@@ -72,192 +102,60 @@ impl<T: Item> SkewHeap<T> {
 
     /// Inserts an item into the heap and returns the new size
     pub fn put(&mut self, item: T) -> usize {
-        let node = self.alloc_node(item);
-        self.root = self.merge(self.root, node);
+        let node = Node::new(item);
+
+        if self.is_empty() {
+            self.root = node;
+        } else {
+            self.root = Node::merge(self.root, node);
+        }
+
         self.count += 1;
         self.count
     }
 
     /// Removes and retrieves the top item from the heap
     pub fn take(&mut self) -> Option<T> {
-        if let Some(root) = self.root {
-            let item = self.nodes[root].item;
-            self.count -= 1;
-            self.root = self.merge(self.nodes[root].left, self.nodes[root].right);
-            self.free_node(root);
-
-            if self.needs_defrag() {
-                self.defrag(false);
-            }
-
-            item
-        } else {
-            None
+        if self.is_empty() {
+            return None
         }
+
+        let root = self.root;
+        let item;
+
+        unsafe {
+            item = (*root).item;
+            self.root = Node::merge((*root).left, (*root).right);
+
+            // free old root node by giving ownership of it to Box
+            Box::from_raw(root);
+        }
+
+        self.count -= 1;
+        Some(item)
     }
 
     /// Retrieves the top item from the heap without removing it
-    pub fn peek(&self) -> Option<T> {
-        match self.root {
-            None    => None,
-            Some(n) => self.nodes[n].item,
+    pub fn peek(&mut self) -> Option<T> {
+        if self.is_empty() {
+            return None
+        }
+
+        unsafe {
+            Some((*self.root).item)
         }
     }
 
-    fn merge(&mut self, a: Handle, b: Handle) -> Handle {
-        match (a, b) {
-            (None,    None)                                     => None,
-            (Some(a), None)                                     => Some(a),
-            (None,    Some(b))                                  => Some(b),
-            (Some(a), Some(b)) if self.nodes[a] > self.nodes[b] => self.merge(Some(b), Some(a)),
-            (Some(a), Some(b))                                  => {
-                // Build a new node from b and a's right child
-                let new_left_node = self.merge(Some(b), self.nodes[a].right);
-
-                // Move a's left node to the right side
-                self.nodes[a].right = self.nodes[a].left;
-
-                // Replace a's left node with the merger of b and a's right node
-                self.nodes[a].left = new_left_node;
-
-                // Set the parent of the newlb merged left node to be a
-                if let Some(new_left_node_idx) = new_left_node {
-                    self.nodes[new_left_node_idx].parent = Some(a);
-                }
-
-                Some(a)
-            },
-        }
-    }
-
-    /// Merge another skew heap into this one, while leaving the other skew heap intact.
-    pub fn adopt(&mut self, other: &mut SkewHeap<T>) {
-        self.defrag(true);
-        other.defrag(true);
-
-        // Copy all nodes from other directly into our allocation vector
-        let offset = self.nodes.len();
-        self.nodes.reserve_exact(other.nodes.len());
-
-        for node in &other.nodes {
-            if let Some(item) = node.item {
-                if let Some(new_index) = self.alloc_node(item) {
-                    if let Some(left) = node.left {
-                        self.nodes[new_index].left = Some(left + offset);
-                    }
-
-                    if let Some(right) = node.right {
-                        self.nodes[new_index].right = Some(right + offset);
-                    }
-                }
-            }
-        }
-
-        self.root = self.merge(self.root, Some(offset));
+    /// Merge another skew heap into this one. Once merged, the other heap is destroyed.
+    pub fn adopt(&mut self, mut other: SkewHeap<T>) {
+        self.root = Node::merge(self.root, other.root);
         self.count += other.count;
-    }
 
-    fn alloc_node(&mut self, item: T) -> Handle {
-        if let Some(idx) = self.freed.pop_front() {
-            self.nodes[idx].item = Some(item);
-            Some(idx)
-        } else {
-            self.nodes.push(Node::new(Some(item)));
-            Some(self.nodes.len() - 1)
-        }
-    }
-
-    fn free_node(&mut self, idx: Index) {
-        self.nodes[idx].item = None;
-        self.freed.push_back(idx);
-    }
-
-    fn realloc_node(&mut self, from: Index) -> Handle {
-        // Reorder freed indices to move lower indices to the front
-        self.freed.make_contiguous().sort();
-
-        // First free slot is further back in nodes than our subject node's current index
-        if let Some(first) = self.freed.front() {
-            if *first > from {
-                return None;
-            }
-        }
-
-        if let Some(to) = self.freed.pop_front() {
-            // Copy from's data info to's memory
-            self.nodes[to].left   = self.nodes[from].left;
-            self.nodes[to].right  = self.nodes[from].right;
-            self.nodes[to].parent = self.nodes[from].parent;
-            self.nodes[to].item   = self.nodes[from].item;
-
-            // Update the parent's child link
-            if let Some(parent_id) = self.nodes[to].parent {
-                if self.nodes[parent_id].left == Some(from) {
-                    self.nodes[parent_id].left = Some(to);
-                } else if self.nodes[parent_id].right == Some(from) {
-                    self.nodes[parent_id].right = Some(to);
-                }
-            }
-
-            // Update the left child's parent link
-            if let Some(left_id) = self.nodes[to].left {
-                self.nodes[left_id].parent = Some(to);
-            }
-
-            // Update the right child's parent link
-            if let Some(right_id) = self.nodes[to].right {
-                self.nodes[right_id].parent = Some(to);
-            }
-
-            // Clear the old from and add it back to the pot
-            self.free_node(from);
-
-            Some(to)
-        } else {
-            None
-        }
-    }
-
-    fn needs_defrag(&mut self) -> bool {
-        // at least 100 items and > 90% of them are freed
-        self.nodes.len() >= 100 && self.freed.len() > (90 * self.nodes.len() / 100)
-    }
-
-    fn defrag(&mut self, force_full: bool) {
-        // Walk backwards over the allocated node list
-        let mut i = self.nodes.len() - 1;
-
-        loop {
-            if !force_full && !self.needs_defrag() {
-                break;
-            }
-
-            // Some(item) means it's allocated
-            if let Some(_) = self.nodes[i].item {
-                // Move it to the next index in self.freed. None means it ran out of free indices.
-                if let Some(new_index) = self.realloc_node(i) {
-                    // If the current index is our root node, update self.root.
-                    if self.root == Some(i) {
-                        self.root = Some(new_index);
-                    }
-                } else {
-                    break;
-                }
-            }
-
-            if i > 0 {
-                i -= 1;
-            } else {
-                break;
-            }
-        }
-
-        // Now that all nodes have been relocated to the front of self.nodes, prune back the empty
-        // slots and clear freed.
-        if i < self.nodes.len() - 1 { // at least one freed slot was used
-            self.nodes.truncate(self.nodes.len() - self.freed.len());
-            self.freed.clear();
-        }
+        // self has taken possession of other's node pointers. We must remove the root pointer from
+        // other and set its count to 0 in order to prevent drop() from attempting to free other's
+        // root tree.
+        other.root = std::ptr::null_mut();
+        other.count = 0;
     }
 }
 
@@ -266,25 +164,36 @@ impl<T: Item + std::fmt::Display> SkewHeap<T> {
     pub fn explain(&self) {
         println!("SkewHeap<size={}>", self.count);
 
-        if let Some(root) = self.root {
-            self._explain(root, 1);
+        if !self.root.is_null() {
+            unsafe {
+                (*self.root).explain(1)
+            }
         }
     }
+}
 
-    fn _explain(&self, node: Index, indent: usize) {
-        let indent_str = format!("{:width$}", "", width=(indent * 3));
+impl<T> Drop for SkewHeap<T> {
+    fn drop(&mut self) {
+        if !self.root.is_null() {
+            let mut stack = VecDeque::from([self.root]);
 
-        if let Some(value) = self.nodes[node].item {
-            println!("{}Node: {}", indent_str, value);
+            loop {
+                if let Some(node) = stack.pop_front() {
+                    unsafe {
+                        if !(*node).left.is_null() {
+                            stack.push_front((*node).left);
+                        }
 
-            if let Some(left) = self.nodes[node].left {
-                println!("{}   Left:", indent_str);
-                self._explain(left, indent + 2);
-            }
+                        if !(*node).right.is_null() {
+                            stack.push_front((*node).right);
+                        }
 
-            if let Some(right) = self.nodes[node].right {
-                println!("{}   Right:", indent_str);
-                self._explain(right, indent + 2);
+                        Box::from_raw(node);
+                    }
+                }
+                else {
+                    break
+                }
             }
         }
     }
@@ -345,7 +254,7 @@ mod tests {
         b.put(5);
         b.put(6);
 
-        a.adopt(&mut b);
+        a.adopt(b);
         assert_eq!(a.size(), 6);
         assert_eq!(a.take(), Some(1));
         assert_eq!(a.take(), Some(2));
@@ -353,10 +262,5 @@ mod tests {
         assert_eq!(a.take(), Some(4));
         assert_eq!(a.take(), Some(5));
         assert_eq!(a.take(), Some(6));
-
-        assert_eq!(b.size(), 3);
-        assert_eq!(b.take(), Some(4));
-        assert_eq!(b.take(), Some(5));
-        assert_eq!(b.take(), Some(6));
     }
 }

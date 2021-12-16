@@ -4,6 +4,15 @@ use rand::seq::SliceRandom;
 
 use skewheap::SkewHeap;
 
+fn make_filled_skewheap(size: usize) -> SkewHeap<u32> {
+    let mut s = SkewHeap::new();
+    for n in 0..size {
+        s.put(n as u32);
+    }
+
+    s
+}
+
 fn put(c: &mut Criterion) {
     let mut group = c.benchmark_group("put into skewheap of size");
     let sizes = [0, 10, 50, 100, 500, 1000];
@@ -11,13 +20,7 @@ fn put(c: &mut Criterion) {
     for size in sizes {
         group.throughput(Throughput::Elements(size as u64));
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
-            let items: Vec<u32> = (0..size).collect();
-            let mut s = SkewHeap::new();
-
-            for n in items{
-                s.put(n);
-            }
-
+            let mut s = make_filled_skewheap(size);
             b.iter(|| s.put(42 as u32))
         });
     }
@@ -32,13 +35,7 @@ fn take(c: &mut Criterion) {
     for size in sizes {
         group.throughput(Throughput::Elements(size as u64));
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |b, &size| {
-            let items: Vec<u32> = (0..size).collect();
-            let mut s = SkewHeap::new();
-
-            for n in items{
-                s.put(n);
-            }
-
+            let mut s = make_filled_skewheap(size);
             b.iter(|| s.take())
         });
     }
