@@ -32,7 +32,7 @@ impl<T: Item> Node<T> {
             return a
         }
 
-        unsafe {
+        unsafe{
             // Swap args to preserve correct ordering if a > b
             if (*a).item > (*b).item {
                 std::ptr::swap(a, b);
@@ -56,7 +56,7 @@ impl<T: Item + std::fmt::Display> Node<T> {
     pub fn explain(&self, indent: usize) {
         let indent_str = format!("{:width$}", "", width=(indent * 3));
 
-        unsafe {
+        unsafe{
             println!("{}Node: {}", indent_str, (*self).item);
 
             if !(*self).left.is_null() {
@@ -91,13 +91,15 @@ impl<T: Item> SkewHeap<T> {
     }
 
     /// Returns the number of items in the SkewHeap
+    #[inline]
     pub fn size(&self) -> usize {
         self.count
     }
 
     /// Returns true if there are no items currently in the SkewHeap
+    #[inline]
     pub fn is_empty(&self) -> bool {
-        self.count == 0
+        self.root.is_null()
     }
 
     /// Inserts an item into the heap and returns the new size
@@ -123,7 +125,7 @@ impl<T: Item> SkewHeap<T> {
         let root = self.root;
         let item;
 
-        unsafe {
+        unsafe{
             item = (*root).item;
             self.root = Node::merge((*root).left, (*root).right);
 
@@ -141,9 +143,7 @@ impl<T: Item> SkewHeap<T> {
             return None
         }
 
-        unsafe {
-            Some((*self.root).item)
-        }
+        unsafe{ Some((*self.root).item) }
     }
 
     /// Merge another skew heap into this one. Once merged, the other heap is destroyed.
@@ -165,9 +165,7 @@ impl<T: Item + std::fmt::Display> SkewHeap<T> {
         println!("SkewHeap<size={}>", self.count);
 
         if !self.root.is_null() {
-            unsafe {
-                (*self.root).explain(1)
-            }
+            unsafe{ (*self.root).explain(1) }
         }
     }
 }
@@ -179,7 +177,7 @@ impl<T> Drop for SkewHeap<T> {
 
             loop {
                 if let Some(node) = stack.pop_front() {
-                    unsafe {
+                    unsafe{
                         if !(*node).left.is_null() {
                             stack.push_front((*node).left);
                         }
