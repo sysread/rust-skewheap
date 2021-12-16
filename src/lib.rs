@@ -35,7 +35,7 @@ impl<T: Item> Node<T> {
         unsafe {
             // Swap args to preserve correct ordering if a > b
             if (*a).item > (*b).item {
-                return Node::merge(b, a)
+                std::ptr::swap(a, b);
             }
 
             // Build a new node from b and a's right child
