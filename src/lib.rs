@@ -203,6 +203,9 @@ impl<T> Drop for SkewHeap<T> {
 mod tests {
     use super::SkewHeap;
 
+    use rand::thread_rng;
+    use rand::seq::SliceRandom;
+
     #[test]
     fn test_positive_path() {
         let mut skew = SkewHeap::new();
@@ -262,5 +265,22 @@ mod tests {
         assert_eq!(a.take(), Some(4));
         assert_eq!(a.take(), Some(5));
         assert_eq!(a.take(), Some(6));
+    }
+
+    #[test]
+    fn test_large_randomized_input() {
+        let size = 1000;
+
+        let mut items: Vec<u32> = (0..size).collect();
+        items.shuffle(&mut thread_rng());
+
+        let mut skew = SkewHeap::new();
+        for n in items {
+            skew.put(n);
+        }
+
+        for n in 0..size {
+            assert_eq!(skew.take(), Some(n));
+        }
     }
 }
